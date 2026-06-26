@@ -3,14 +3,14 @@ import Link from 'next/link';
 interface Listing {
   id: string;
   title: string;
-  price: number;
+  pricePence: number;
   locationCity: string;
   images: string[];
 }
 
 export default function ListingCard({ listing }: { listing: Listing }) {
   const img = listing.images?.[0];
-  const price = (listing.price / 100).toFixed(2);
+  const price = (listing.pricePence / 100).toFixed(2);
 
   return (
     <Link href={`/listings/${listing.id}`}
@@ -19,7 +19,7 @@ export default function ListingCard({ listing }: { listing: Listing }) {
       <div className="aspect-square bg-gray-100 relative">
         {img ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={`${process.env.NEXT_PUBLIC_API_URL}/${img}`} alt={listing.title}
+          <img src={`${process.env.NEXT_PUBLIC_API_URL}${img}`} alt={listing.title}
             className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-4xl">📷</div>

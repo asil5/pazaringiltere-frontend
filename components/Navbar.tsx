@@ -25,7 +25,13 @@ export default function Navbar() {
                 style={{ background: 'var(--accent)' }}>
                 + İlan Ver
               </Link>
-              <span style={{ color: 'var(--muted)' }}>{user.name}</span>
+              {user.role === 'admin' && (
+                <Link href="/admin" className="text-xs px-2 py-1 rounded font-medium"
+                  style={{ background: 'var(--accent)', color: 'white' }}>
+                  Admin
+                </Link>
+              )}
+              <Link href="/profile" style={{ color: 'var(--muted)' }}>{user.name}</Link>
               <button onClick={handleLogout} style={{ color: 'var(--muted)' }}>Çıkış</button>
             </>
           ) : (

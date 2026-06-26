@@ -35,14 +35,14 @@ export default function NewListingPage() {
     try {
       const pricePence = Math.round(parseFloat(form.price) * 100);
       if (isNaN(pricePence) || pricePence <= 0) throw new Error('Geçerli bir fiyat gir');
-      const listing = await api.post<{ id: string }>('/api/listings', {
+      const res = await api.post<{ listing: { id: string } }>('/api/listings', {
         title: form.title,
         description: form.description,
-        price: pricePence,
+        pricePence,
         locationCity: form.locationCity,
         locationPostcode: form.locationPostcode,
       });
-      router.push(`/listings/${listing.id}`);
+      router.push(`/listings/${res.listing.id}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Hata oluştu');
     } finally { setLoading(false); }

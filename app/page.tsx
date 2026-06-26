@@ -4,7 +4,7 @@ import SearchBar from '@/components/SearchBar';
 interface Listing {
   id: string;
   title: string;
-  price: number;
+  pricePence: number;
   locationCity: string;
   images: string[];
   createdAt: string;

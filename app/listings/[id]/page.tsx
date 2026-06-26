@@ -1,20 +1,26 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-async function getListing(id: string) {
+const BASE = process.env.NEXT_PUBLIC_API_URL!;
+
+async function getListingData(id: string) {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/listings/${id}`, { next: { revalidate: 60 } });
+    const res = await fetch(`${BASE}/api/listings/${id}`, { next: { revalidate: 60 } });
     if (!res.ok) return null;
-    return res.json();
+    return await res.json();
   } catch { return null; }
 }
 
 export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const listing = await getListing(id);
-  if (!listing) notFound();
+  const data = await getListingData(id);
+  if (!data) notFound();
 
-  const price = (listing.price / 100).toFixed(2);
+  const listing = data.listing ?? data;
+  const seller = data.seller ?? null;
+  const otherListings: any[] = data.otherListings ?? [];
+
+  const price = ((listing.pricePence ?? listing.price ?? 0) / 100).toFixed(2);
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -27,7 +33,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           <div className="aspect-video bg-gray-100">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={`${process.env.NEXT_PUBLIC_API_URL}/${listing.images[0]}`}
+              src={`${BASE}${listing.images[0]}`}
               alt={listing.title}
               className="w-full h-full object-cover"
             />
@@ -67,6 +73,60 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
       </div>
+
+      {/* Seller Info */}
+      {seller && (
+        <div className="mt-6 rounded-xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <h2 className="font-semibold mb-3">Satıcı</h2>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
+              style={{ background: 'var(--accent)' }}>
+              {seller.name?.[0]?.toUpperCase() ?? '?'}
+            </div>
+            <div>
+              <p className="font-medium">{seller.name}</p>
+              {seller.createdAt && (
+                <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+                  Üye: {new Date(seller.createdAt).toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seller's Other Listings */}
+      {otherListings.length > 0 && (
+        <div className="mt-6">
+          <h2 className="font-semibold mb-4">
+            {seller?.name ? `${seller.name} adlı satıcının diğer ilanları` : 'Satıcının diğer ilanları'}
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {otherListings.map((item: any) => {
+              const itemPrice = ((item.pricePence ?? item.price ?? 0) / 100).toFixed(2);
+              const itemImg = item.images?.[0];
+              return (
+                <Link key={item.id} href={`/listings/${item.id}`}
+                  className="block rounded-lg overflow-hidden border transition-shadow hover:shadow-md"
+                  style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                  <div className="aspect-square bg-gray-100">
+                    {itemImg ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={`${BASE}${itemImg}`} alt={item.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-3xl">📷</div>
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <p className="text-xs font-medium line-clamp-2 mb-1">{item.title}</p>
+                    <p className="text-sm font-bold" style={{ color: 'var(--accent)' }}>£{itemPrice}</p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

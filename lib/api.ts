@@ -15,8 +15,9 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
       ...options?.headers,
     },
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || 'Hata oluştu');
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+  if (!res.ok) throw new Error(data?.message || 'Hata oluştu');
   return data as T;
 }
 
