@@ -8,6 +8,7 @@ interface Stats {
   totalUsers: number;
   activeListings: number;
   pendingListings: number;
+  featuredListings: number;
 }
 
 export default function AdminDashboard() {
@@ -21,6 +22,7 @@ export default function AdminDashboard() {
     { label: 'Toplam İlan', value: stats.totalListings, color: '#2563eb' },
     { label: 'Aktif İlan', value: stats.activeListings, color: '#16a34a' },
     { label: 'Onay Bekleyen', value: stats.pendingListings, color: '#d97706' },
+    { label: 'Vitrin İlan', value: stats.featuredListings, color: '#7c3aed' },
     { label: 'Toplam Üye', value: stats.totalUsers, color: 'var(--accent)' },
   ] : [];
 
@@ -31,7 +33,7 @@ export default function AdminDashboard() {
       {!stats ? (
         <p style={{ color: 'var(--muted)' }}>Yükleniyor...</p>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {cards.map(c => (
             <div key={c.label} className="rounded-xl border p-5"
               style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
