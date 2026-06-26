@@ -43,6 +43,11 @@ export default function AdminUsers() {
     setUsers(prev => prev.map(u => u.id === id ? { ...u, active: false } : u));
   };
 
+  const activate = async (id: string) => {
+    await api.patch(`/api/admin/users/${id}/activate`, {});
+    setUsers(prev => prev.map(u => u.id === id ? { ...u, active: true } : u));
+  };
+
   const changeRole = async (id: string, currentRole: string) => {
     const newRole = currentRole === 'admin' ? 'user' : 'admin';
     if (!confirm(`Bu kullanıcıyı ${newRole} yapmak istediğinden emin misin?`)) return;
@@ -128,6 +133,13 @@ export default function AdminUsers() {
                           className="text-xs px-2 py-1 rounded font-medium"
                           style={{ background: '#dc262618', color: '#dc2626' }}>
                           Deaktive
+                        </button>
+                      )}
+                      {!u.active && (
+                        <button onClick={() => activate(u.id)}
+                          className="text-xs px-2 py-1 rounded font-medium"
+                          style={{ background: '#16a34a18', color: '#16a34a' }}>
+                          Aktive Et
                         </button>
                       )}
                     </div>
