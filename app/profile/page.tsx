@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
-import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import Link from 'next/link';
 
@@ -10,98 +9,231 @@ interface Listing {
   id: string;
   title: string;
   pricePence: number;
-  locationCity: string;
-  images: string[];
   status: string;
   confirm: boolean;
   createdAt: string;
+  images: string[];
 }
+
+const STATUS = (l: Listing) =>
+  !l.confirm ? { text: 'Onay bekliyor', color: '#d97706' }
+  : l.status === 'ACTIVE' ? { text: 'Yayında', color: '#16a34a' }
+  : l.status === 'SOLD' ? { text: 'Satıldı', color: '#6b7280' }
+  : { text: l.status, color: 'var(--muted)' };
 
 export default function ProfilePage() {
   const { user } = useAuth();
-  const router = useRouter();
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [phone, setPhone] = useState('');
+  const [editingPhone, setEditingPhone] = useState(false);
+  const [savingPhone, setSavingPhone] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ title: '', pricePence: '' });
 
   useEffect(() => {
-    if (!user) { router.push('/auth/login'); return; }
+    if (!user) return;
+    api.get<{ user: any }>('/api/users/me').then(r => setPhone(r.user.phone || '')).catch(() => {});
     api.get<{ listings: Listing[] }>('/api/listings/mine')
       .then(r => setListings(r.listings))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [user, router]);
+  }, [user]);
+
+  const savePhone = async () => {
+    setSavingPhone(true);
+    await api.patch('/api/users/me', { phone });
+    setSavingPhone(false);
+    setEditingPhone(false);
+  };
+
+  const openEdit = (l: Listing) => {
+    setEditId(l.id);
+    setEditForm({ title: l.title, pricePence: String(l.pricePence / 100) });
+  };
+
+  const saveEdit = async () => {
+    if (!editId) return;
+    const pricePence = Math.round(parseFloat(editForm.pricePence) * 100);
+    await api.patch(`/api/listings/${editId}`, { title: editForm.title, pricePence });
+    setListings(prev => prev.map(l => l.id === editId ? { ...l, title: editForm.title, pricePence } : l));
+    setEditId(null);
+  };
+
+  const markSold = async (id: string) => {
+    if (!confirm('Bu ilanı satıldı olarak işaretlemek istediğinden emin misin?')) return;
+    await api.patch(`/api/listings/${id}/sold`, {});
+    setListings(prev => prev.map(l => l.id === id ? { ...l, status: 'SOLD' } : l));
+  };
+
+  const deleteListing = async (id: string) => {
+    if (!confirm('Bu ilanı silmek istediğinden emin misin?')) return;
+    await api.delete(`/api/listings/${id}`);
+    setListings(prev => prev.filter(l => l.id !== id));
+  };
 
   if (!user) return null;
 
-  const statusLabel = (l: Listing) => {
-    if (l.status === 'sold') return { text: 'Satıldı', color: '#6b7280' };
-    if (!l.confirm) return { text: 'Onay bekliyor', color: '#d97706' };
-    if (l.status === 'active') return { text: 'Yayında', color: '#16a34a' };
-    return { text: l.status, color: 'var(--muted)' };
-  };
+  const active  = listings.filter(l => l.confirm && l.status === 'ACTIVE').length;
+  const pending = listings.filter(l => !l.confirm).length;
+  const sold    = listings.filter(l => l.status === 'SOLD').length;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <div className="rounded-xl border p-6 mb-8" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold">{user.name}</h1>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>{user.email}</p>
-            {user.role === 'admin' && (
-              <span className="inline-block mt-2 text-xs px-2 py-0.5 rounded font-medium text-white" style={{ background: 'var(--accent)' }}>
-                Admin
-              </span>
-            )}
-          </div>
-          <Link href="/listings/new"
-            className="px-4 py-2 rounded-lg text-white text-sm font-medium"
+      <h1 className="text-2xl font-bold mb-6">Profilim</h1>
+
+      {/* Kullanıcı kartı */}
+      <div className="rounded-xl border p-5 mb-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+        <div className="flex items-center gap-4 mb-4">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold"
             style={{ background: 'var(--accent)' }}>
-            + İlan Ver
-          </Link>
+            {user.name?.[0]?.toUpperCase()}
+          </div>
+          <div>
+            <p className="font-semibold text-lg">{user.name}</p>
+            <p className="text-sm" style={{ color: 'var(--muted)' }}>{user.email}</p>
+          </div>
+        </div>
+
+        {/* WhatsApp / Telefon */}
+        <div className="border-t pt-4" style={{ borderColor: 'var(--border)' }}>
+          <p className="text-sm font-medium mb-2">WhatsApp / Telefon</p>
+          {editingPhone ? (
+            <div className="flex gap-2">
+              <input value={phone} onChange={e => setPhone(e.target.value)}
+                placeholder="+44 7700 000000"
+                className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+                style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+              <button onClick={savePhone} disabled={savingPhone}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-white"
+                style={{ background: 'var(--accent)', opacity: savingPhone ? 0.7 : 1 }}>
+                {savingPhone ? '...' : 'Kaydet'}
+              </button>
+              <button onClick={() => setEditingPhone(false)}
+                className="px-3 py-2 rounded-lg text-sm"
+                style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--muted)' }}>
+                İptal
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <span className="text-sm" style={{ color: phone ? 'var(--text)' : 'var(--muted)' }}>
+                {phone || 'Telefon eklenmedi'}
+              </span>
+              <button onClick={() => setEditingPhone(true)}
+                className="text-xs px-2 py-1 rounded font-medium"
+                style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--muted)' }}>
+                {phone ? 'Düzenle' : 'Ekle'}
+              </button>
+            </div>
+          )}
+          <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>Alıcılar sana WhatsApp üzerinden ulaşabilir</p>
         </div>
       </div>
 
-      <h2 className="text-lg font-semibold mb-4">İlanlarım</h2>
+      {/* İlan özet */}
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        {[
+          { label: 'Yayında', value: active,  color: '#16a34a' },
+          { label: 'Bekleyen', value: pending, color: '#d97706' },
+          { label: 'Satıldı',  value: sold,    color: '#6b7280' },
+        ].map(s => (
+          <div key={s.label} className="rounded-xl border p-4 text-center"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <p className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* İlanlarım */}
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="font-semibold text-lg">İlanlarım</h2>
+        <Link href="/listings/new" className="text-sm px-3 py-1.5 rounded-lg text-white font-medium"
+          style={{ background: 'var(--accent)' }}>
+          + Yeni İlan
+        </Link>
+      </div>
 
       {loading ? (
         <p style={{ color: 'var(--muted)' }}>Yükleniyor...</p>
       ) : listings.length === 0 ? (
-        <div className="text-center py-16 border rounded-xl" style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>
-          <p className="text-4xl mb-3">📦</p>
-          <p className="mb-4">Henüz ilanın yok.</p>
-          <Link href="/listings/new"
-            className="inline-block px-5 py-2 rounded-lg text-white text-sm font-medium"
-            style={{ background: 'var(--accent)' }}>
-            İlk ilanını ver
-          </Link>
+        <div className="text-center py-12 rounded-xl border" style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>
+          Henüz ilanın yok.{' '}
+          <Link href="/listings/new" style={{ color: 'var(--accent)' }}>İlk ilanını ver →</Link>
         </div>
       ) : (
         <div className="space-y-3">
           {listings.map(l => {
-            const s = statusLabel(l);
-            const price = (l.pricePence / 100).toFixed(2);
+            const s = STATUS(l);
+            const img = l.images?.[0];
             return (
-              <Link key={l.id} href={`/listings/${l.id}`}
-                className="flex items-center gap-4 p-4 rounded-xl border transition-shadow hover:shadow-sm"
+              <div key={l.id} className="rounded-xl border overflow-hidden"
                 style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-                <div className="w-14 h-14 rounded-lg bg-gray-100 shrink-0 overflow-hidden">
-                  {l.images?.[0] ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={`${process.env.NEXT_PUBLIC_API_URL}/${l.images[0]}`} alt={l.title}
-                      className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-2xl">📷</div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{l.title}</p>
-                  <p className="text-sm font-bold mt-0.5" style={{ color: 'var(--accent)' }}>£{price}</p>
-                </div>
-                <span className="text-xs font-medium px-2 py-1 rounded-full shrink-0"
-                  style={{ background: `${s.color}18`, color: s.color }}>
-                  {s.text}
-                </span>
-              </Link>
+                {editId === l.id ? (
+                  <div className="p-4 space-y-3">
+                    <p className="font-medium text-sm">İlanı Düzenle</p>
+                    <input value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
+                      placeholder="Başlık" className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                      style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                    <input value={editForm.pricePence} onChange={e => setEditForm(f => ({ ...f, pricePence: e.target.value }))}
+                      placeholder="Fiyat (£)" type="number" step="0.01"
+                      className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                      style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                    <div className="flex gap-2">
+                      <button onClick={saveEdit}
+                        className="px-4 py-2 rounded-lg text-sm font-medium text-white"
+                        style={{ background: 'var(--accent)' }}>Kaydet</button>
+                      <button onClick={() => setEditId(null)}
+                        className="px-3 py-2 rounded-lg text-sm"
+                        style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--muted)' }}>İptal</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 p-3">
+                    <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-gray-100">
+                      {img
+                        ? <img src={`${process.env.NEXT_PUBLIC_API_URL}${img}`} alt={l.title} className="w-full h-full object-cover" />
+                        : <div className="w-full h-full flex items-center justify-center text-2xl">📷</div>
+                      }
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{l.title}</p>
+                      <p className="text-sm font-bold mt-0.5" style={{ color: 'var(--accent)' }}>
+                        £{(l.pricePence / 100).toFixed(2)}
+                      </p>
+                      <span className="text-xs px-1.5 py-0.5 rounded-full font-medium mt-1 inline-block"
+                        style={{ background: `${s.color}18`, color: s.color }}>{s.text}</span>
+                    </div>
+                    <div className="flex flex-col gap-1 shrink-0">
+                      <Link href={`/listings/${l.id}`}
+                        className="text-xs px-2 py-1 rounded text-center font-medium"
+                        style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--muted)' }}>
+                        Gör
+                      </Link>
+                      {l.status !== 'SOLD' && (
+                        <button onClick={() => openEdit(l)}
+                          className="text-xs px-2 py-1 rounded font-medium"
+                          style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--muted)' }}>
+                          Düzenle
+                        </button>
+                      )}
+                      {l.confirm && l.status === 'ACTIVE' && (
+                        <button onClick={() => markSold(l.id)}
+                          className="text-xs px-2 py-1 rounded font-medium"
+                          style={{ background: '#6b728018', color: '#6b7280' }}>
+                          Satıldı
+                        </button>
+                      )}
+                      <button onClick={() => deleteListing(l.id)}
+                        className="text-xs px-2 py-1 rounded font-medium"
+                        style={{ background: '#dc262618', color: '#dc2626' }}>
+                        Sil
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
