@@ -20,6 +20,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const nav = [
     { href: '/admin', label: 'Dashboard' },
     { href: '/admin/listings', label: 'İlanlar' },
+    { href: '/admin/stores', label: 'Mağazalar' },
     { href: '/admin/categories', label: 'Kategoriler' },
     { href: '/admin/users', label: 'Kullanıcılar' },
   ];

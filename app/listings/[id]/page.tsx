@@ -39,6 +39,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
 
   const listing = data.listing ?? data;
   const seller = data.seller ?? null;
+  const sellerStore: { name: string; slug: string } | null = data.sellerStore ?? null;
   const otherListings: any[] = data.otherListings ?? [];
   const attrs: Record<string, any> = listing.attributes ?? {};
   const hasAttrs = Object.keys(attrs).filter(k => k !== 'features').length > 0;
@@ -184,6 +185,15 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                   className="flex items-center justify-center w-full py-3 rounded-lg text-white font-semibold text-sm mb-2"
                   style={{ background: 'var(--accent)' }}>
                   İletişim İçin Giriş Yap
+                </Link>
+              )}
+
+              {/* Mağaza linki */}
+              {sellerStore && (
+                <Link href={`/magaza/${sellerStore.slug}`}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-medium mb-2"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--accent)' }}>
+                  🏪 {sellerStore.name} Mağazasına Git
                 </Link>
               )}
 

@@ -5,6 +5,16 @@ import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
 import Link from 'next/link';
 
+interface Store {
+  id: string;
+  name: string;
+  slug: string | null;
+  description: string | null;
+  phone: string | null;
+  active: boolean;
+  createdAt: string;
+}
+
 interface Listing {
   id: string;
   title: string;
@@ -23,6 +33,7 @@ const STATUS = (l: Listing) =>
 
 export default function ProfilePage() {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'ilanlar' | 'magaza'>('ilanlar');
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [phone, setPhone] = useState('');
@@ -31,6 +42,13 @@ export default function ProfilePage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ title: '', pricePence: '' });
 
+  // Mağaza state
+  const [store, setStore] = useState<Store | null | undefined>(undefined); // undefined=yükleniyor
+  const [storeForm, setStoreForm] = useState({ name: '', slug: '', description: '', phone: '' });
+  const [storeEditing, setStoreEditing] = useState(false);
+  const [storeSaving, setStoreSaving] = useState(false);
+  const [storeError, setStoreError] = useState('');
+
   useEffect(() => {
     if (!user) return;
     api.get<{ user: any }>('/api/users/me').then(r => setPhone(r.user.phone || '')).catch(() => {});
@@ -38,6 +56,9 @@ export default function ProfilePage() {
       .then(r => setListings(r.listings))
       .catch(() => {})
       .finally(() => setLoading(false));
+    api.get<Store | null>('/api/stores/me')
+      .then(r => { setStore(r); if (r) setStoreForm({ name: r.name, slug: r.slug ?? '', description: r.description ?? '', phone: r.phone ?? '' }); })
+      .catch(() => setStore(null));
   }, [user]);
 
   const savePhone = async () => {
@@ -59,6 +80,39 @@ export default function ProfilePage() {
     setListings(prev => prev.map(l => l.id === editId ? { ...l, title: editForm.title, pricePence } : l));
     setEditId(null);
   };
+
+  const sf = (k: string, v: string) => setStoreForm(f => ({ ...f, [k]: v }));
+
+  const createStore = async () => {
+    if (!storeForm.name || !storeForm.slug) { setStoreError('Mağaza adı ve URL gerekli'); return; }
+    setStoreSaving(true); setStoreError('');
+    try {
+      const res = await api.post<Store>('/api/stores', storeForm);
+      setStore(res);
+      setStoreEditing(false);
+    } catch (e: any) {
+      const msg = e?.message || '';
+      if (msg.includes('SLUG_TAKEN')) setStoreError('Bu URL kullanımda, başka bir tane dene');
+      else if (msg.includes('STORE_ALREADY_EXISTS')) setStoreError('Zaten bir mağazan var');
+      else setStoreError('Hata oluştu');
+    } finally { setStoreSaving(false); }
+  };
+
+  const updateStore = async () => {
+    setStoreSaving(true); setStoreError('');
+    try {
+      const res = await api.patch<Store>('/api/stores/me', storeForm);
+      setStore(res);
+      setStoreEditing(false);
+    } catch (e: any) {
+      const msg = e?.message || '';
+      if (msg.includes('SLUG_TAKEN')) setStoreError('Bu URL kullanımda');
+      else setStoreError('Hata oluştu');
+    } finally { setStoreSaving(false); }
+  };
+
+  const slugify = (v: string) =>
+    v.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').slice(0, 50);
 
   const markSold = async (id: string) => {
     if (!confirm('Bu ilanı satıldı olarak işaretlemek istediğinden emin misin?')) return;
@@ -131,6 +185,137 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* Tab seçici */}
+      <div className="flex gap-1 mb-6 border-b" style={{ borderColor: 'var(--border)' }}>
+        {(['ilanlar', 'magaza'] as const).map(tab => (
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            className="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors"
+            style={{
+              borderColor: activeTab === tab ? 'var(--accent)' : 'transparent',
+              color: activeTab === tab ? 'var(--accent)' : 'var(--muted)',
+            }}>
+            {tab === 'ilanlar' ? '📋 İlanlarım' : '🏪 Mağazam'}
+          </button>
+        ))}
+      </div>
+
+      {/* ── MAĞAZAM TABU ─────────────────────────────────────────────── */}
+      {activeTab === 'magaza' && (
+        <div>
+          {store === undefined ? (
+            <p style={{ color: 'var(--muted)' }}>Yükleniyor...</p>
+          ) : store && !storeEditing ? (
+            /* Mağaza bilgisi göster */
+            <div className="rounded-xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white text-xl font-bold"
+                    style={{ background: 'var(--accent)' }}>
+                    {store.name[0]?.toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="font-bold text-lg">{store.name}</p>
+                    {store.slug && (
+                      <Link href={`/magaza/${store.slug}`} target="_blank"
+                        className="text-xs hover:underline" style={{ color: 'var(--accent)' }}>
+                        pazaringiltere.co.uk/magaza/{store.slug} ↗
+                      </Link>
+                    )}
+                  </div>
+                </div>
+                <span className="text-xs px-2 py-1 rounded-full font-medium shrink-0"
+                  style={{
+                    background: store.active ? '#16a34a18' : '#d9780618',
+                    color: store.active ? '#16a34a' : '#d97806',
+                  }}>
+                  {store.active ? '✓ Aktif' : '⏳ Admin onayı bekleniyor'}
+                </span>
+              </div>
+              {store.description && (
+                <p className="text-sm mb-3" style={{ color: 'var(--muted)' }}>{store.description}</p>
+              )}
+              {store.phone && (
+                <p className="text-sm mb-4" style={{ color: 'var(--muted)' }}>📞 {store.phone}</p>
+              )}
+              {!store.active && (
+                <div className="rounded-lg p-3 mb-4 text-sm"
+                  style={{ background: '#d9780610', border: '1px solid #d9780640', color: '#92400e' }}>
+                  Mağazan admin tarafından inceleniyor. Onaylandıktan sonra herkese açık olacak.
+                </div>
+              )}
+              <button onClick={() => setStoreEditing(true)}
+                className="text-sm px-4 py-2 rounded-lg font-medium"
+                style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--muted)' }}>
+                Düzenle
+              </button>
+            </div>
+          ) : (
+            /* Mağaza oluştur / düzenle formu */
+            <div className="rounded-xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <h2 className="font-semibold mb-4">{store ? 'Mağazayı Düzenle' : 'Mağaza Aç'}</h2>
+              {!store && (
+                <div className="rounded-lg p-3 mb-4 text-sm"
+                  style={{ background: '#2563eb10', border: '1px solid #2563eb30', color: '#1e40af' }}>
+                  Mağaza açtıktan sonra admin onayı bekleyecek. Ücretsiz.
+                </div>
+              )}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Mağaza Adı *</label>
+                  <input value={storeForm.name}
+                    onChange={e => { sf('name', e.target.value); if (!store) sf('slug', slugify(e.target.value)); }}
+                    placeholder="Örn: Ahmet'in Elektronik Mağazası"
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Mağaza URL'si *</label>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs shrink-0" style={{ color: 'var(--muted)' }}>pazaringiltere.co.uk/magaza/</span>
+                    <input value={storeForm.slug}
+                      onChange={e => sf('slug', slugify(e.target.value))}
+                      placeholder="ahmetin-elektronik"
+                      className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+                      style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Açıklama</label>
+                  <textarea value={storeForm.description} onChange={e => sf('description', e.target.value)}
+                    rows={3} placeholder="Mağazanızı tanıtın..."
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
+                    style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">WhatsApp / Telefon</label>
+                  <input value={storeForm.phone} onChange={e => sf('phone', e.target.value)}
+                    placeholder="+44 7700 000000"
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                </div>
+                {storeError && <p className="text-sm text-red-600">{storeError}</p>}
+                <div className="flex gap-2">
+                  <button onClick={store ? updateStore : createStore} disabled={storeSaving}
+                    className="px-5 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+                    style={{ background: 'var(--accent)' }}>
+                    {storeSaving ? '...' : store ? 'Güncelle' : 'Mağaza Aç'}
+                  </button>
+                  {store && (
+                    <button onClick={() => { setStoreEditing(false); setStoreError(''); }}
+                      className="px-4 py-2 rounded-lg text-sm"
+                      style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--muted)' }}>
+                      İptal
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── İLANLARIM TABU ───────────────────────────────────────────── */}
+      {activeTab === 'ilanlar' && <>
       {/* İlan özet */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         {[
@@ -238,6 +423,7 @@ export default function ProfilePage() {
           })}
         </div>
       )}
+      </>}
     </div>
   );
 }
