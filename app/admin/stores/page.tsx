@@ -11,10 +11,14 @@ interface Store {
   description: string | null;
   phone: string | null;
   active: boolean;
-  created_at: string;
-  user_name: string;
-  user_email: string;
-  listing_count: string;
+  createdAt: string;
+  user?: { id: string; name: string; email: string };
+  listingCount?: number;
+  // eski alan adları (geriye dönük uyumluluk)
+  created_at?: string;
+  user_name?: string;
+  user_email?: string;
+  listing_count?: string;
 }
 
 export default function AdminStores() {
@@ -98,10 +102,10 @@ export default function AdminStores() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <p className="font-medium text-sm">{s.user_name}</p>
-                    <p className="text-xs" style={{ color: 'var(--muted)' }}>{s.user_email}</p>
+                    <p className="font-medium text-sm">{s.user?.name ?? s.user_name ?? '—'}</p>
+                    <p className="text-xs" style={{ color: 'var(--muted)' }}>{s.user?.email ?? s.user_email ?? '—'}</p>
                   </td>
-                  <td className="px-4 py-3 text-sm font-medium">{s.listing_count}</td>
+                  <td className="px-4 py-3 text-sm font-medium">{s.listingCount ?? s.listing_count ?? 0}</td>
                   <td className="px-4 py-3">
                     <span className="text-xs font-medium px-2 py-1 rounded-full"
                       style={{
@@ -112,7 +116,7 @@ export default function AdminStores() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-xs" style={{ color: 'var(--muted)' }}>
-                    {new Date(s.created_at).toLocaleDateString('tr-TR')}
+                    {new Date(s.createdAt ?? s.created_at ?? '').toLocaleDateString('tr-TR')}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 justify-end">

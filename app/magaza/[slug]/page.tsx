@@ -98,7 +98,7 @@ export default async function MagazaPage({ params }: { params: Promise<{ slug: s
               <div className="aspect-[4/3] bg-gray-100 relative">
                 {l.images?.[0] ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={`${BASE}${l.images[0]}`} alt={l.title}
+                  <img src={l.images[0].startsWith('http') ? l.images[0] : `${BASE}${l.images[0]}`} alt={l.title}
                     className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-3xl"

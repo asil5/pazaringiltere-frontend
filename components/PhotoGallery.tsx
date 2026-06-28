@@ -21,7 +21,7 @@ export default function PhotoGallery({ images, title, base }: { images: string[]
         style={{ border: '1px solid var(--border)' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={`${base}${images[active]}`}
+          src={images[active].startsWith('http') ? images[active] : `${base}${images[active]}`}
           alt={`${title} - ${active + 1}`}
           className="w-full h-full object-cover"
         />
@@ -40,7 +40,7 @@ export default function PhotoGallery({ images, title, base }: { images: string[]
                 opacity: i === active ? 1 : 0.6,
               }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`${base}${img}`} alt={`${i + 1}`} className="w-full h-full object-cover" />
+              <img src={img.startsWith('http') ? img : `${base}${img}`} alt={`${i + 1}`} className="w-full h-full object-cover" />
             </button>
           ))}
         </div>

@@ -284,7 +284,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                   <div className="aspect-[4/3] bg-gray-100">
                     {itemImg ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={`${BASE}${itemImg}`} alt={item.title} className="w-full h-full object-cover" />
+                      <img src={itemImg.startsWith('http') ? itemImg : `${BASE}${itemImg}`} alt={item.title} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-3xl">📷</div>
                     )}

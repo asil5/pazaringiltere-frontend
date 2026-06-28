@@ -378,7 +378,7 @@ export default function ProfilePage() {
                   <div className="flex items-center gap-3 p-3">
                     <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-gray-100">
                       {img
-                        ? <img src={`${process.env.NEXT_PUBLIC_API_URL}${img}`} alt={l.title} className="w-full h-full object-cover" />
+                        ? <img src={img.startsWith('http') ? img : `${process.env.NEXT_PUBLIC_API_URL}${img}`} alt={l.title} className="w-full h-full object-cover" />
                         : <div className="w-full h-full flex items-center justify-center text-2xl">📷</div>
                       }
                     </div>
